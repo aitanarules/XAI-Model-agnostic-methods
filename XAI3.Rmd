@@ -1,0 +1,38 @@
+---
+title: "XAI3"
+author: "Aitana Sebastià Espinosa"
+date: "2024-05-22"
+output: html_document
+---
+
+```{r}
+setwd("C:/CD/2º cuatri/Evaluation and Deployment of Models/Xai-3")
+```
+
+
+
+# Libraries
+
+```{r}
+
+```
+
+
+# 1.- One dimensional Partal Dependance Plot
+```{r}
+
+```
+
+
+# 2.- Bidimensional Partial Dependance Plot
+```{r}
+
+```
+
+
+# 3.- PDP to explain the price of a house
+
+```{r}
+
+```
+
