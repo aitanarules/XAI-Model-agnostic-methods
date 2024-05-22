@@ -93,8 +93,8 @@ day_train <- day_new[ index, ]
 day_test <- day_new[-index, ]
 
 # Model building
-rf_fit <- train(cnt ~ . , data = day_train, method = "rf")
-pred_rf <- predict(rf_fit, day_test)
+rf_day <- train(cnt ~ . , data = day_train, method = "rf")
+pred_rf_day <- predict(rf_fit, day_test)
 # probs_rf <- predict(rf_fit, day_test,type = "prob")
 
 
@@ -142,6 +142,7 @@ grid.arrange(plot.Petal_W, plot.Sepal_W, plot.Petal_L, plot.Sepal_L, plot.Petal_
 Generate a 2D Partial Dependency Plot with humidity and temperature to predict the number of bikes rented depending on those parameters. 
 
 BE CAREFUL: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.Show the density distribution of both input features with the 2D plot as shown in the class slides.  
+
 TIP: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes.  
 
 ```{r}
@@ -155,7 +156,30 @@ Apply the previous concepts to predict the price of a house from the database kc
 BE CAREFUL: due to the size, extract a set of random samples from the BBDD before 
 generating the data for the Partial Dependency Plot.  
 
+
+### Data preparation
 ```{r}
+house_new = select(house,price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, yr_built)
+```
+### Random forest
+
+```{r}
+set.seed(123)
+
+# Train and test split
+index <- createDataPartition(house_new$price, p = .8, list = FALSE)
+house_train <- house_new[ index, ]
+house_test <- house_new[-index, ]
+
+# Model building
+rf_house <- train(price ~ . , data = house_train, method = "rf")
+pred_rf_house <- predict(rf_fit, house_test)
+# probs_rf <- predict(rf_fit, day_test,type = "prob")
+
+
+summary(rf_fit)
 
 ```
+
+### PDP
 
