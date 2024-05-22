@@ -22,6 +22,20 @@ library(caret)
 library(pdp)
 library(ggplot2)
 ```
+```{r}
+install.packages("randomForest")
+install.packages("caret")
+install.packages("pdp")
+install.packages("ggplot2")
+install.packages("cowplot")
+
+# Load the libraries
+library(randomForest)
+library(caret)
+library(pdp)
+library(ggplot2)
+library(cowplot)
+```
 
 
 # Data
@@ -48,31 +62,29 @@ Apply PDP to the regression example of predicting bike rentals. Fit a random for
 ### Data preparation and preprocessing
 
 ```{r}
-# We prepare the new variables
+## We prepare the new variables
 
-# incluiremos 3/4 para deshacer la correlación
+# We just include 3 out of the 4 features to undo the correlation
 day$season = factor(day$season)
 season_one_hot = model.matrix(~ 0 + season, data = day)
 
-
+# One-hot encoding
 misty = ifelse(day$weathersit==2,1,0)
 rain = ifelse(day$weathersit %in% c(3,4),1,0)
 
-# temp -> (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale) 
+# Unnormalize: temp -> (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale) 
 temp = (39+8)*day$temp -8
   
-# hum -> The values are divided to 100 (max) 
+# Unnormalize: hum -> The values are divided to 100 (max) 
 hum = day$hum*100
   
-# windspeed -> The values are divided to 67 (max)
+# Unnormalize: windspeed -> The values are divided to 67 (max)
 windspeed = day$windspeed*67
 
 # length(day$dteday) --> 731 days
 days_since_2011 =  seq(0,365*2)
 dim(day)
 ```
-
-
 
 ```{r}
 day_new = data.frame(day$cnt, day$workingday, day$holiday, season_one_hot[,-1], misty, rain, temp, hum, windspeed, days_since_2011)
@@ -94,47 +106,304 @@ day_test <- day_new[-index, ]
 
 # Model building
 rf_day <- train(cnt ~ . , data = day_train, method = "rf")
-pred_rf_day <- predict(rf_fit, day_test)
+pred_rf_day <- predict(rf_day, day_test)
 # probs_rf <- predict(rf_fit, day_test,type = "prob")
 
 
-summary(rf_fit)
-
+summary(rf_day)
 
 ```
 
-### Partial Dependance Plot
-
-https://rpubs.com/vishal1310/QuickIntroductiontoPartialDependencePlots
-here's an example of use
-
-```{r}
-
-# Single Variable
-par.Petal_W <- partial(model.svm, pred.var = c("Petal.Width"), chull = TRUE)
-plot.Petal_W <- autoplot(par.Petal_W, contour = TRUE)
-
-# Single Variable
-par.Sepal_W  <- partial(model.svm, pred.var = c("Sepal.Width"), chull = TRUE)
-plot.Sepal_W  <- autoplot(par.Sepal_W , contour = TRUE)
-
-# Single Variable
-par.Petal_L <- partial(model.svm, pred.var = c("Petal.Length"), chull = TRUE)
-plot.Petal_L <- autoplot(par.Petal_L, contour = TRUE)
-
-# Single Variable
-par.Sepal_L  <- partial(model.svm, pred.var = c("Sepal.Length"), chull = TRUE)
-plot.Sepal_L  <- autoplot(par.Sepal_L , contour = TRUE)
-```
 
 
 ```{r}
-# Two Variables
-par.Petal_W.Sepal_W <- partial(model.svm, pred.var = c("Petal.Width", "Sepal.Width"), chull = TRUE)
-plot.Petal_W.Sepal_W <- autoplot(par.Petal_W.Sepal_W, contour = TRUE, legend.title = "Partial\ndependence")
+# Partial Dependence Plots
+pdp_days_since_2011 <- partial(rf_day, pred.var = "days_since_2011", train = day_train)
+pdp_temp <- partial(rf_day, pred.var = "temp", train = day_train)
+pdp_hum <- partial(rf_day, pred.var = "hum", train = day_train)
+pdp_windspeed <- partial(rf_day, pred.var = "windspeed", train = day_train)
 
-grid.arrange(plot.Petal_W, plot.Sepal_W, plot.Petal_L, plot.Sepal_L, plot.Petal_W.Sepal_W)
+# Plotting the PDPs
+plot(pdp_days_since_2011, main = "Partial Dependence Plot for Days Since 2011", xlab = "Days Since 2011", ylab = "Predicted Bike Counts")
+plot(pdp_temp, main = "Partial Dependence Plot for Temperature", xlab = "Temperature", ylab = "Predicted Bike Counts")
+plot(pdp_hum, main = "Partial Dependence Plot for Humidity", xlab = "Humidity", ylab = "Predicted Bike Counts")
+plot(pdp_windspeed, main = "Partial Dependence Plot for Windspeed", xlab = "Windspeed", ylab = "Predicted Bike Counts")
+
+
+
+
+# Function to plot PDP with ggplot2
+plot_pdp <- function(pdp_data, variable_name, x_label) {
+  ggplot(pdp_data, aes(x = eval(parse(text = variable_name)), y = yhat)) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_name),
+         x = x_label,
+         y = "Predicted Bike Rentals")
+}
+
+# Plot PDPs using ggplot2
+pdp_temp_df <- as.data.frame(pdp_temp)
+pdp_hum_df <- as.data.frame(pdp_hum)
+pdp_windspeed_df <- as.data.frame(pdp_windspeed)
+
+plot_pdp(pdp_temp_df, "temp", "Temperature")
+plot_pdp(pdp_hum_df, "hum", "Humidity")
+plot_pdp(pdp_windspeed_df, "windspeed", "Windspeed")
+
+
+
+
 ```
+
+```{r}
+# Load necessary packages
+library(pdp)
+library(ggplot2)
+library(gridExtra)
+
+# Function to create PDP plot with density
+create_pdp_with_density <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Density plot
+  density_plot <- ggplot(train_data, aes_string(x = variable)) +
+    geom_density(fill = "gray", alpha = 0.5) +
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed
+pdp_temp_plot <- create_pdp_with_density(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot <- create_pdp_with_density(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot <- create_pdp_with_density(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot)
+print(pdp_hum_plot)
+print(pdp_windspeed_plot)
+
+```
+
+```{r}
+# Function to create PDP plot with density using bins
+create_pdp_with_density_bins <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Density plot with bins
+  density_plot <- ggplot(train_data, aes_string(x = variable)) +
+    geom_histogram(fill = "gray", alpha = 0.5, bins = 20) + # Adjust the number of bins as needed
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed using bins
+pdp_temp_plot_bins <- create_pdp_with_density_bins(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot_bins <- create_pdp_with_density_bins(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot_bins <- create_pdp_with_density_bins(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot_bins)
+print(pdp_hum_plot_bins)
+print(pdp_windspeed_plot_bins)
+
+```
+```{r}
+# Function to create PDP plot with density using rug plot
+create_pdp_with_density_sticks <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Density plot with rug plot
+  density_plot <- ggplot(train_data, aes_string(x = variable)) +
+    geom_histogram(fill = "gray", alpha = 0.5, bins = 20) + # Adjust the number of bins as needed
+    geom_rug(aes(y = 0), position = "jitter") + # Add rug plot with y aesthetic set to 0
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed using rug plot
+pdp_temp_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot_sticks)
+print(pdp_hum_plot_sticks)
+print(pdp_windspeed_plot_sticks)
+
+```
+
+```{r}
+# Function to create PDP plot with density using rug plot
+create_pdp_with_density_sticks <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Density plot with rug plot
+  density_plot <- ggplot(train_data, aes_string(x = variable)) +
+    geom_histogram(fill = "gray", alpha = 0.5, bins = 20) + # Adjust the number of bins as needed
+    geom_rug(aes(y = 0), position = "jitter") + # Add rug plot with y aesthetic set to 0
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed using rug plot
+pdp_temp_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot_sticks <- create_pdp_with_density_sticks(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot_sticks)
+print(pdp_hum_plot_sticks)
+print(pdp_windspeed_plot_sticks)
+
+```
+```{r}
+# Function to create PDP plot with density using vertical lines
+create_pdp_with_density_lines <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Calculate density manually
+  density_data <- density(train_data[[variable]])
+  density_df <- data.frame(x = density_data$x, density = density_data$y)
+  
+  # Density plot with vertical lines
+  density_plot <- ggplot() +
+    geom_vline(data = density_df, aes(xintercept = x), color = "black", linetype = "solid", alpha = 0.5) +
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed using vertical lines
+pdp_temp_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot_lines)
+print(pdp_hum_plot_lines)
+print(pdp_windspeed_plot_lines)
+
+```
+
+
+```{r}
+# Function to create PDP plot with density using thin vertical lines
+create_pdp_with_density_lines <- function(rf_model, train_data, variable, variable_label) {
+  # Generate the PDP
+  pdp_data <- partial(rf_model, pred.var = variable, train = train_data, grid.resolution = 20)
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # PDP plot
+  pdp_plot <- ggplot(pdp_df, aes_string(x = variable, y = "yhat")) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = paste("Partial Dependence Plot for", variable_label),
+         x = variable_label,
+         y = "Predicted Bike Rentals")
+  
+  # Calculate density manually
+  density_data <- density(train_data[[variable]])
+  density_df <- data.frame(x = density_data$x, density = density_data$y)
+  
+  # Density plot with thin vertical lines
+  density_plot <- ggplot() +
+    geom_segment(data = density_df, aes(x = x, xend = x, y = 0, yend = density), color = "black", size = 0.5) +
+    theme_minimal() +
+    labs(x = variable_label, y = "Density")
+  
+  # Combine the PDP and density plot using cowplot
+  combined_plot <- plot_grid(pdp_plot, density_plot, align = "v", ncol = 1, rel_heights = c(3, 1))
+  
+  return(combined_plot)
+}
+
+# Create PDPs with density plots for temperature, humidity, and windspeed using thin vertical lines
+pdp_temp_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "temp", "Temperature")
+pdp_hum_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "hum", "Humidity")
+pdp_windspeed_plot_lines <- create_pdp_with_density_lines(rf_day, day_train, "windspeed", "Windspeed")
+
+# Display the plots
+print(pdp_temp_plot_lines)
+print(pdp_hum_plot_lines)
+print(pdp_windspeed_plot_lines)
+
+```
+
 
 
 ## 2.- Bidimensional Partial Dependance Plot
@@ -146,6 +415,58 @@ BE CAREFUL: due to the size, extract a set of random samples from the BBDD befor
 TIP: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes.  
 
 ```{r}
+ggplot() +
+  geom_tile(data = pdp_2d_df, aes(x = hum, y = temp, fill = yhat), width = 0.9, height = 0.9) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  geom_rug(data = bikes, aes(x = hum), sides = "b") +
+  geom_rug(data = bikes, aes(y = temp), sides = "l") + 
+  theme_minimal()
+```
+
+
+
+```{r}
+# Step 1: Extract a random subset of samples
+sampled_indices <- sample(nrow(day_new), 1000, replace = TRUE)
+sampled_data <- day_new[sampled_indices, ]
+
+# Step 2: Generate PDP data for humidity and temperature
+pdp_data <- partial(rf_day, pred.var = c("hum", "temp"), train = sampled_data, grid.resolution = 20)
+
+# Convert the pdp_data to a data frame
+pdp_df <- as.data.frame(pdp_data)
+
+# Step 3: Create density plots for humidity and temperature
+density_humidity <- ggplot(sampled_data, aes(x = hum)) +
+  geom_density(fill = "gray", alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "Humidity", y = "Density")
+
+density_temperature <- ggplot(sampled_data, aes(x = temp)) +
+  geom_density(fill = "gray", alpha = 0.5) +
+  theme_minimal() +
+  labs(x = "Temperature", y = "Density")
+
+# Step 4: Generate the 2D plot using geom_tile()
+pdp_2d_plot <- ggplot(pdp_df, aes(x = hum, y = temp, fill = yhat)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "2D Partial Dependency Plot",
+       x = "Humidity", y = "Temperature", fill = "Predicted Bike Rentals")
+
+# Display the plots
+print(density_humidity)
+print(density_temperature)
+print(pdp_2d_plot)
+
+
+ggplot() +
+  geom_tile(data = pdp_df, aes(x = hum, y = temp, fill = yhat), width = 10, height = 5) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  geom_rug(data = day_new, aes(x = hum), sides = "b") +
+  geom_rug(data = day_new, aes(y = temp), sides = "l") + 
+  theme_minimal()
 
 ```
 
