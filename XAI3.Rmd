@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r}
-setwd("C:/CD/2º cuatri/Evaluation and Deployment of Models/Xai-3")
+# setwd("C:/CD/2º cuatri/Evaluation and Deployment of Models/Xai-3")
+setwd("C:/Users/34686/3CD - 23_24/EDM/XAI3")
 ```
 
 
@@ -14,23 +15,145 @@ setwd("C:/CD/2º cuatri/Evaluation and Deployment of Models/Xai-3")
 # Libraries
 
 ```{r}
+# Data partition
+library(caret)  
+
+# PDP
+library(pdp)
+library(ggplot2)
+```
+
+
+# Data
+
+```{r}
+day = read.csv("day.csv")
+hour = read.csv("hour.csv")
+house = read.csv("kc_house_data.csv")
 
 ```
 
 
-# 1.- One dimensional Partal Dependance Plot
+
+# Activities
+
+## 1.- One dimensional Partal Dependance Plot
+
+The partial dependence plot shows the marginal effect of a feature on the predicted outcome of a previously fit model.  
+
+
+Apply PDP to the regression example of predicting bike rentals. Fit a random forest approximation for the prediction of bike rentals (cnt). Use the partial dependence plot to visualize the relationships the model learned. Use the slides shown in class as model.   
+
+
+### Data preparation and preprocessing
+
+```{r}
+# We prepare the new variables
+
+# incluiremos 3/4 para deshacer la correlación
+day$season = factor(day$season)
+season_one_hot = model.matrix(~ 0 + season, data = day)
+
+
+misty = ifelse(day$weathersit==2,1,0)
+rain = ifelse(day$weathersit %in% c(3,4),1,0)
+
+# temp -> (t-t_min)/(t_max-t_min), t_min=-8, t_max=+39 (only in hourly scale) 
+temp = (39+8)*day$temp -8
+  
+# hum -> The values are divided to 100 (max) 
+hum = day$hum*100
+  
+# windspeed -> The values are divided to 67 (max)
+windspeed = day$windspeed*67
+
+# length(day$dteday) --> 731 days
+days_since_2011 =  seq(0,365*2)
+dim(day)
+```
+
+
+
+```{r}
+day_new = data.frame(day$cnt, day$workingday, day$holiday, season_one_hot[,-1], misty, rain, temp, hum, windspeed, days_since_2011)
+
+names(day_new)[1:6] = c("cnt", "workingday", "holiday", "summer", "fall", "winter")
+head(day_new)
+
+```
+
+
+### Random Forest
+```{r}
+set.seed(123)
+
+# Train and test split
+index <- createDataPartition(day_new$cnt, p = .8, list = FALSE)
+day_train <- day_new[ index, ]
+day_test <- day_new[-index, ]
+
+# Model building
+rf_fit <- train(cnt ~ . , data = day_train, method = "rf")
+pred_rf <- predict(rf_fit, day_test)
+# probs_rf <- predict(rf_fit, day_test,type = "prob")
+
+
+summary(rf_fit)
+
+
+```
+
+### Partial Dependance Plot
+
+https://rpubs.com/vishal1310/QuickIntroductiontoPartialDependencePlots
+here's an example of use
+
+```{r}
+
+# Single Variable
+par.Petal_W <- partial(model.svm, pred.var = c("Petal.Width"), chull = TRUE)
+plot.Petal_W <- autoplot(par.Petal_W, contour = TRUE)
+
+# Single Variable
+par.Sepal_W  <- partial(model.svm, pred.var = c("Sepal.Width"), chull = TRUE)
+plot.Sepal_W  <- autoplot(par.Sepal_W , contour = TRUE)
+
+# Single Variable
+par.Petal_L <- partial(model.svm, pred.var = c("Petal.Length"), chull = TRUE)
+plot.Petal_L <- autoplot(par.Petal_L, contour = TRUE)
+
+# Single Variable
+par.Sepal_L  <- partial(model.svm, pred.var = c("Sepal.Length"), chull = TRUE)
+plot.Sepal_L  <- autoplot(par.Sepal_L , contour = TRUE)
+```
+
+
+```{r}
+# Two Variables
+par.Petal_W.Sepal_W <- partial(model.svm, pred.var = c("Petal.Width", "Sepal.Width"), chull = TRUE)
+plot.Petal_W.Sepal_W <- autoplot(par.Petal_W.Sepal_W, contour = TRUE, legend.title = "Partial\ndependence")
+
+grid.arrange(plot.Petal_W, plot.Sepal_W, plot.Petal_L, plot.Sepal_L, plot.Petal_W.Sepal_W)
+```
+
+
+## 2.- Bidimensional Partial Dependance Plot
+
+Generate a 2D Partial Dependency Plot with humidity and temperature to predict the number of bikes rented depending on those parameters. 
+
+BE CAREFUL: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.Show the density distribution of both input features with the 2D plot as shown in the class slides.  
+TIP: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes.  
+
 ```{r}
 
 ```
 
 
-# 2.- Bidimensional Partial Dependance Plot
-```{r}
+## 3.- PDP to explain the price of a house
+Apply the previous concepts to predict the price of a house from the database kc_house_data.csv. In this case, use again a random forest approximation for the prediction based on the features bedrooms, bathrooms, sqft_living, sqft_lot, floors and yr_built. Use the partial dependence plot to visualize the relationships the model learned. 
 
-```
-
-
-# 3.- PDP to explain the price of a house
+BE CAREFUL: due to the size, extract a set of random samples from the BBDD before 
+generating the data for the Partial Dependency Plot.  
 
 ```{r}
 
