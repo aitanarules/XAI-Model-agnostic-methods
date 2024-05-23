@@ -189,17 +189,19 @@ house = read.csv("kc_house_data.csv")
 
 ```{r}
 house_new = select(house,price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, yr_built)
+
+# We sample the data to obtain the 25% of it
+house_sample = sample_frac(house_new, 0.25)
 ```
 
 ## Random forest
 
 ```{r}
 set.seed(123)
-
 # Train and test split
-index <- createDataPartition(house_new$price, p = .8, list = FALSE)
-house_train <- house_new[ index, ]
-house_test <- house_new[-index, ]
+index <- createDataPartition(house_sample$price, p = .8, list = FALSE)
+house_train <- house_sample[ index, ]
+house_test <- house_sample[-index, ]
 
 # Model building
 rf_house <- train(price ~ . , data = house_train, method = "rf")
@@ -212,18 +214,24 @@ pred_rf_house <- predict(rf_house, house_test)
 
 
 ```{r}
-pdp_plot_bedrooms <- generate_pdp_plot(rf_house, "bedrooms", "Bedrooms" ,house_new, "Predicted Price")
+pdp_plot_bedrooms <- generate_pdp_plot(rf_house, "bedrooms", "Bedrooms" ,house_sample, "Predicted Price")
 print(pdp_plot_bedrooms)
 
-pdp_plot_bathrooms <- generate_pdp_plot(rf_house, "bathrooms", "Bathrooms" ,house_new, "Predicted Price")
+pdp_plot_bathrooms <- generate_pdp_plot(rf_house, "bathrooms", "Bathrooms" ,house_sample, "Predicted Price")
 print(pdp_plot_bathrooms)
 
-pdp_plot_sqft_living <- generate_pdp_plot(rf_house, "sqft_living", "SQFT living",house_new, "Predicted Price")
+pdp_plot_sqft_living <- generate_pdp_plot(rf_house, "sqft_living", "SQFT living",house_sample, "Predicted Price")
 print(pdp_plot_sqft_living)
 
-pdp_plot_floors <- generate_pdp_plot(rf_house, "floors", "Floors", house_new, "Predicted Price")
+pdp_plot_floors <- generate_pdp_plot(rf_house, "floors", "Floors", house_sample, "Predicted Price")
 print(pdp_plot_floors)
 ```
+
+
+```{r}
+summary(house_sample)
+```
+
 
 ## Bidimensional Partial Dependence Plot
 
