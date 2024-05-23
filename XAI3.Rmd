@@ -116,7 +116,7 @@ generate_pdp_plot <- function(model, pred_var, var_name, train_data, y_name="Pre
     geom_line(aes_string(x = pred_var, y = "yhat"), color = "black") +  # Line for the PDP
     geom_rug(data = train_data, aes_string(x = pred_var), sides = "b") +
     theme_minimal() +
-    labs(title = paste("Partial Dependency Plot for", var_name),
+    labs(title = paste("Partial dependence plot for", var_name),
          x = pred_var, y = y_name)
   
   # Return the PDP plot
