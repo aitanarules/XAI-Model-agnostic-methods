@@ -1,17 +1,14 @@
-
 ---
 title: 'Model-agnostic methods: Partial Dependency Plot (PDP)'
 author: "Natalia Martínez, Elena Orón, Aitana Sebastià"
-date: "2024-05-22"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_notebook
---- 
-
+---
 
 ```{r}
 # setwd("C:/Users/natal/Downloads/EDM/PL Tema 5/Practica 5/")
 setwd("C:/Users/34686/3CD - 23_24/EDM/XAI3")
 ```
-
 
 # Libraries
 
@@ -30,8 +27,6 @@ library(pdp)
 library(ggplot2)
 
 ```
-
-
 
 # 1. Bike-rental database
 
@@ -75,15 +70,14 @@ names(day_new)[1:6] = c("cnt", "workingday", "holiday", "spring", "summer", "fal
 day_new
 ```
 
-
-The partial dependence plot shows the marginal effect of a feature on the predicted outcome of a previously fit model. 
+The partial dependence plot shows the marginal effect of a feature on the predicted outcome of a previously fit model.
 
 Apply PDP to the regression example of predicting bike rentals. Fit a random forest approximation for the prediction of bike rentals (cnt). Use the partial dependence plot to visualize the relationships the model learned. Use the slides shown in class as model.
 
-Generate a 2D Partial Dependency Plot with humidity and temperature to predict the number of bikes rented depending on those parameters. 
+Generate a 2D Partial Dependency Plot with humidity and temperature to predict the number of bikes rented depending on those parameters.
 
-BE CAREFUL: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.Show the density distribution of both input features with the 2D plot as shown in the class slides.  
-TIP: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes. 
+BE CAREFUL: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.Show the density distribution of both input features with the 2D plot as shown in the class slides.\
+TIP: Use geom_tile() to generate the 2D plot. Set width and height to avoid holes.
 
 ## Random Forest
 
@@ -103,39 +97,52 @@ rf_day <- train(cnt ~ . , data = day_train, method = "rf")
 
 ```
 
-
-
 ## One dimensional Partial Dependence Plot
 
+General function to plot the required variables.
 
 ```{r}
 
-# Generate PDP data for humidity
+# Define the function to generate the PDP plot
+generate_pdp_plot <- function(model, pred_var, var_name, train_data, y_name="Predicted bike rentals", grid_resolution = 20) {
+  # Generate the PDP data for the specified variable
+  pdp_data <- partial(model, pred.var = pred_var, train = train_data, grid.resolution = grid_resolution)
+  
+  # Convert the PDP data to a data frame
+  pdp_df <- as.data.frame(pdp_data)
+  
+  # Generate the PDP plot
+  pdp_plot <- ggplot(pdp_df) +
+    geom_line(aes_string(x = pred_var, y = "yhat"), color = "black") +  # Line for the PDP
+    geom_rug(data = train_data, aes_string(x = pred_var), sides = "b") +
+    theme_minimal() +
+    labs(title = paste("Partial Dependency Plot for", var_name),
+         x = pred_var, y = y_name)
+  
+  # Return the PDP plot
+  return(pdp_plot)
+}
+```
 
-pdp_data_hum <- partial(rf_day, pred.var = "hum", train = day_new, grid.resolution = 20)
+Plot the PDP for numerical variables:
 
-
-# Convert the pdp_data to a data frame
-pdp_df_hum <- as.data.frame(pdp_data_hum)
-
-# Generate the plot
-pdp_plot_hum <- ggplot(pdp_df_hum) +
-  #geom_density(fill = "lightblue", alpha = 0.5) +  # Density plot
-  geom_line(aes(x = hum, y = yhat), color = "black") +  # Line plot for PDP
-  geom_rug(data = day_new, aes(x = hum), sides = "b") +
-  theme_minimal() +
-  labs(title = "Partial Dependency Plot for Humidity",
-       x = "Humidity", y = "Predicted Bike Rentals")
-
-# Display the plot
+```{r}
+pdp_plot_hum <- generate_pdp_plot(rf_day, "hum", "Humidity" ,day_new)
 print(pdp_plot_hum)
+
+pdp_plot_temp <- generate_pdp_plot(rf_day, "temp", "Temperature" ,day_new)
+print(pdp_plot_temp)
+
+pdp_plot_windspeed <- generate_pdp_plot(rf_day, "windspeed", "Wind speed",day_new)
+print(pdp_plot_windspeed)
+
+pdp_plot_days_since_2011 <- generate_pdp_plot(rf_day, "days_since_2011", "Days since 2011",day_new)
+print(pdp_plot_days_since_2011)
+
 
 ```
 
-
-
 ## Bidimensional Partial Dependence Plot
-
 
 ```{r}
 # Generate PDP data for humidity and temperature
@@ -166,14 +173,11 @@ ggplot() +
 
 ```
 
-
-
-
 # 2. House price database
-Apply the previous concepts to predict the price of a house from the database kc_house_data.csv. In this case, use again a random forest approximation for the prediction based on the features bedrooms, bathrooms, sqft_living, sqft_lot, floors and yr_built. Use the partial dependence plot to visualize the relationships the model learned. 
 
-BE CAREFUL: due to the size, extract a set of random samples from the BBDD before 
-generating the data for the Partial Dependency Plot.  
+Apply the previous concepts to predict the price of a house from the database kc_house_data.csv. In this case, use again a random forest approximation for the prediction based on the features bedrooms, bathrooms, sqft_living, sqft_lot, floors and yr_built. Use the partial dependence plot to visualize the relationships the model learned.
+
+BE CAREFUL: due to the size, extract a set of random samples from the BBDD before generating the data for the Partial Dependency Plot.
 
 ## Data
 
@@ -181,12 +185,11 @@ generating the data for the Partial Dependency Plot.
 house = read.csv("kc_house_data.csv")
 ```
 
-
 ## Data preparation
+
 ```{r}
 house_new = select(house,price, bedrooms, bathrooms, sqft_living, sqft_lot, floors, yr_built)
 ```
-
 
 ## Random forest
 
@@ -200,26 +203,30 @@ house_test <- house_new[-index, ]
 
 # Model building
 rf_house <- train(price ~ . , data = house_train, method = "rf")
-pred_rf_house <- predict(rf_fit, house_test)
-# probs_rf <- predict(rf_fit, day_test,type = "prob")
-
-
-summary(rf_fit)
+pred_rf_house <- predict(rf_house, house_test)
 
 ```
-
-
 
 ## One dimensional Partial Dependence Plot
+
+
+
 ```{r}
+pdp_plot_bedrooms <- generate_pdp_plot(rf_house, "bedrooms", "Bedrooms" ,house_new, "Predicted Price")
+print(pdp_plot_bedrooms)
 
+pdp_plot_bathrooms <- generate_pdp_plot(rf_house, "bathrooms", "Bathrooms" ,house_new, "Predicted Price")
+print(pdp_plot_bathrooms)
+
+pdp_plot_sqft_living <- generate_pdp_plot(rf_house, "sqft_living", "SQFT living",house_new, "Predicted Price")
+print(pdp_plot_sqft_living)
+
+pdp_plot_floors <- generate_pdp_plot(rf_house, "floors", "Floors", house_new, "Predicted Price")
+print(pdp_plot_floors)
 ```
-
-
-
 
 ## Bidimensional Partial Dependence Plot
+
 ```{r}
 
 ```
-
