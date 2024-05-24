@@ -235,6 +235,95 @@ summary(house_sample)
 
 ## Bidimensional Partial Dependence Plot
 
-```{r}
 
+
+
+```{r}
+# Generate PDP data for sqft_living and bedrooms
+pdp_data <- partial(rf_house, pred.var = c("sqft_living", "bedrooms"), train = house_sample, grid.resolution = 20)
+
+# Convert the pdp_data to a data frame
+pdp_df <- as.data.frame(pdp_data)
+
+# Normalize yhat values between 0 and 1
+#pdp_df$yhat <- (pdp_df$yhat - min(pdp_df$yhat)) / (max(pdp_df$yhat) - min(pdp_df$yhat))
+
+
+# Generate the 2D plot using geom_tile()
+pdp_2d_plot <- ggplot(pdp_df, aes(x = sqft_living, y = bedrooms, fill = yhat)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "2D Partial Dependency Plot",
+       x = "SQFT living", y = "Bedrooms", fill = "Predicted house prices")
+
+# Display the plot
+ggplot() +
+  geom_tile(data = pdp_df, aes(x = sqft_living, y = bedrooms, fill = yhat), width = 1000, height = 5) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  geom_rug(data = house_sample, aes(x = sqft_living), sides = "b") +
+  geom_rug(data = house_sample, aes(y = bedrooms), sides = "l") + 
+  theme_minimal()
 ```
+
+
+
+```{r}
+# Generate PDP data for sqft_living and bathrooms
+pdp_data <- partial(rf_house, pred.var = c("sqft_living", "bathrooms"), train = house_sample, grid.resolution = 20)
+
+# Convert the pdp_data to a data frame
+pdp_df <- as.data.frame(pdp_data)
+
+# Normalize yhat values between 0 and 1
+#pdp_df$yhat <- (pdp_df$yhat - min(pdp_df$yhat)) / (max(pdp_df$yhat) - min(pdp_df$yhat))
+
+
+# Generate the 2D plot using geom_tile()
+pdp_2d_plot <- ggplot(pdp_df, aes(x = sqft_living, y = bathrooms, fill = yhat)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "2D Partial Dependency Plot",
+       x = "SQFT living", y = "bathrooms", fill = "Predicted house prices")
+
+# Display the plot
+ggplot() +
+  geom_tile(data = pdp_df, aes(x = sqft_living, y = bathrooms, fill = yhat), width = 1000, height = 5) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  geom_rug(data = house_sample, aes(x = sqft_living), sides = "b") +
+  geom_rug(data = house_sample, aes(y = bathrooms), sides = "l") + 
+  theme_minimal()
+```
+
+
+
+
+```{r}
+# Generate PDP data for sqft_living and floors
+pdp_data <- partial(rf_house, pred.var = c("sqft_living", "floors"), train = house_sample, grid.resolution = 20)
+
+# Convert the pdp_data to a data frame
+pdp_df <- as.data.frame(pdp_data)
+
+# Normalize yhat values between 0 and 1
+#pdp_df$yhat <- (pdp_df$yhat - min(pdp_df$yhat)) / (max(pdp_df$yhat) - min(pdp_df$yhat))
+
+
+# Generate the 2D plot using geom_tile()
+pdp_2d_plot <- ggplot(pdp_df, aes(x = sqft_living, y = floors, fill = yhat)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  labs(title = "2D Partial Dependency Plot",
+       x = "SQFT living", y = "floors", fill = "Predicted house prices")
+
+# Display the plot
+ggplot() +
+  geom_tile(data = pdp_df, aes(x = sqft_living, y = floors, fill = yhat), width = 1000, height = 5) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  geom_rug(data = house_sample, aes(x = sqft_living), sides = "b") +
+  geom_rug(data = house_sample, aes(y = floors), sides = "l") + 
+  theme_minimal()
+```
+
